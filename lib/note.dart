@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:location/location.dart';
+import 'models/note_model.dart';
+import 'db/db_helper.dart';
 
 class NoteScreen extends StatefulWidget {
   const NoteScreen({super.key});
@@ -11,6 +14,7 @@ class NoteScreen extends StatefulWidget {
 class _NoteScreenState extends State<NoteScreen> {
   final TextEditingController _controller = TextEditingController();
   final ImagePicker _picker = ImagePicker();
+  final Location _location = Location();
   List<XFile> _images = [];
 
   Future<void> _pickImages() async {
@@ -22,6 +26,32 @@ class _NoteScreenState extends State<NoteScreen> {
     }
   }
 
+  Future<void> _saveNote() async {
+    // Ensure location service and permissions
+    bool serviceEnabled = await _location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await _location.requestService();
+      if (!serviceEnabled) return;
+    }
+    PermissionStatus permissionGranted = await _location.hasPermission();
+    if (permissionGranted == PermissionStatus.denied) {
+      permissionGranted = await _location.requestPermission();
+      if (permissionGranted != PermissionStatus.granted) return;
+    }
+
+    final locData = await _location.getLocation();
+    final now = DateTime.now();
+    final note = Note(
+      text: _controller.text,
+      imagePaths: _images.map((x) => x.path).toList(),
+      dateTime: now,
+      latitude: locData.latitude,
+      longitude: locData.longitude,
+    );
+    await DBHelper().insertNote(note);
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -30,12 +60,7 @@ class _NoteScreenState extends State<NoteScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
-            onPressed: () {
-              // TODO: Persist note content and images
-              print('Note content: ${_controller.text}');
-              print('Attached images: ${_images.length}');
-              Navigator.pop(context);
-            },
+            onPressed: _saveNote,
           ),
         ],
       ),
@@ -43,7 +68,6 @@ class _NoteScreenState extends State<NoteScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Container holding text input and image previews
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
