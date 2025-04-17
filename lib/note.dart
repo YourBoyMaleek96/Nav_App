@@ -43,14 +43,48 @@ class _NoteScreenState extends State<NoteScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Container holding text input and image previews
             Expanded(
-              child: TextField(
-                controller: _controller,
-                maxLines: null,
-                expands: true,
-                decoration: const InputDecoration(
-                  hintText: 'Write your note here...',
-                  border: OutlineInputBorder(),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        textAlignVertical: TextAlignVertical.top,
+                        maxLines: null,
+                        expands: true,
+                        decoration: const InputDecoration(
+                          hintText: 'Write your note here...',
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.all(8),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                    ),
+                    if (_images.isNotEmpty)
+                      SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _images.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: Image.file(
+                                File(_images[index].path),
+                                width: 100,
+                                fit: BoxFit.cover,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -64,25 +98,6 @@ class _NoteScreenState extends State<NoteScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            if (_images.isNotEmpty)
-              SizedBox(
-                height: 100,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _images.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: Image.file(
-                        File(_images[index].path),
-                        width: 100,
-                        fit: BoxFit.cover,
-                      ),
-                    );
-                  },
-                ),
-              ),
           ],
         ),
       ),
