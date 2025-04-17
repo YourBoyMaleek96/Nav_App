@@ -48,13 +48,12 @@ class _ViewListScreenState extends State<ViewListScreen> {
     }
     // Create Excel
     final excel = Excel.createExcel();
-    final sheet = excel['Notes'];
+    final sheet = excel['Sheet1'];
     sheet.appendRow([
-      'ID', 'Text', 'DateTime', 'Latitude', 'Longitude', 'ImagePaths'
+      'Text', 'DateTime', 'Latitude', 'Longitude'
     ]);
     for (final note in _notes.where((n) => _selectedIds.contains(n.id))) {
       sheet.appendRow([
-        note.id,
         note.text,
         note.dateTime.toIso8601String(),
         note.latitude,
