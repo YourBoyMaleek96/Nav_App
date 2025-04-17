@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:get/get_navigation/get_navigation.dart';
 import 'note.dart';
 import 'view_list.dart';
 
-void main() => runApp(const MyApp());
+void main() {
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -12,6 +13,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: HomeScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -47,13 +49,6 @@ class HomeScreen extends StatelessWidget {
                 );
               },
               child: const Text('View List'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                print('Upload pressed!');
-              },
-              child: const Text('Upload'),
             ),
           ],
         ),
