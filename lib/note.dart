@@ -18,16 +18,26 @@ class _NoteScreenState extends State<NoteScreen> {
   List<XFile> _images = [];
 
   Future<void> _pickImages() async {
-    final List<XFile>? selectedImages = await _picker.pickMultiImage();
-    if (selectedImages != null && selectedImages.isNotEmpty) {
+    try {
+      final List<XFile>? selectedImages = await _picker.pickMultiImage(imageQuality: 80);
+      if (selectedImages == null || selectedImages.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No images selected')),
+        );
+        return;
+      }
       setState(() {
         _images.addAll(selectedImages);
       });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking images: $e')),
+      );
     }
   }
 
   Future<void> _saveNote() async {
-    // Ensure location service and permissions
+    // Request and check location permissions
     bool serviceEnabled = await _location.serviceEnabled();
     if (!serviceEnabled) {
       serviceEnabled = await _location.requestService();
@@ -39,17 +49,23 @@ class _NoteScreenState extends State<NoteScreen> {
       if (permissionGranted != PermissionStatus.granted) return;
     }
 
-    final locData = await _location.getLocation();
-    final now = DateTime.now();
-    final note = Note(
-      text: _controller.text,
-      imagePaths: _images.map((x) => x.path).toList(),
-      dateTime: now,
-      latitude: locData.latitude,
-      longitude: locData.longitude,
-    );
-    await DBHelper().insertNote(note);
-    Navigator.pop(context);
+    try {
+      final locData = await _location.getLocation();
+      final now = DateTime.now();
+      final note = Note(
+        text: _controller.text,
+        imagePaths: _images.map((x) => x.path).toList(),
+        dateTime: now,
+        latitude: locData.latitude,
+        longitude: locData.longitude,
+      );
+      await DBHelper().insertNote(note);
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving note: $e')),
+      );
+    }
   }
 
   @override

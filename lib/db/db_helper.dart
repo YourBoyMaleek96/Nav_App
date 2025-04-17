@@ -38,7 +38,19 @@ class DBHelper {
 
   Future<List<Note>> getNotes() async {
     final dbClient = await database;
-    final List<Map<String, dynamic>> maps = await dbClient.query('notes', orderBy: 'dateTime DESC');
+    final List<Map<String, dynamic>> maps = await dbClient.query(
+      'notes',
+      orderBy: 'dateTime DESC',
+    );
     return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+  }
+
+  Future<int> deleteNote(int id) async {
+    final dbClient = await database;
+    return await dbClient.delete(
+      'notes',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 }
