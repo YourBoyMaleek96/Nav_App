@@ -1,10 +1,9 @@
-// lib/view_list.dart
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:excel/excel.dart';
 import 'package:share_plus/share_plus.dart';
+
 import 'models/note_model.dart';
 import 'db/db_helper.dart';
 
@@ -63,7 +62,12 @@ class _ViewListScreenState extends State<ViewListScreen> {
           (prev, note) => note.imagePaths.length > prev ? note.imagePaths.length : prev,
     );
 
-    // 4) Header row (no ID)
+    // 4) Set a fixed width only for image columns (columns 4, 5, …)
+    for (var imgCol = 0; imgCol < maxImageCount; imgCol++) {
+      sheet.setColumnWidth(4 + imgCol, 20);
+    }
+
+    // 5) Header row (no ID column)
     sheet.appendRow(<CellValue?>[
       TextCellValue('Text'),
       TextCellValue('DateTime'),
@@ -72,11 +76,11 @@ class _ViewListScreenState extends State<ViewListScreen> {
       ...List.generate(maxImageCount, (i) => TextCellValue('Image${i + 1}')),
     ]);
 
-    // 5) Data rows
+    // 6) Data rows
     for (var rowIndex = 0; rowIndex < selectedNotes.length; rowIndex++) {
       final note = selectedNotes[rowIndex];
 
-      // a) Insert text/date/coords + empty image‑cols
+      // a) Text/date/coords + placeholders for images
       sheet.appendRow(<CellValue?>[
         TextCellValue(note.text),
         DateTimeCellValue.fromDateTime(note.dateTime),
@@ -85,15 +89,18 @@ class _ViewListScreenState extends State<ViewListScreen> {
         ...List.filled(maxImageCount, null),
       ]);
 
-      // b) Embed each image in its cell
+      // b) Bump row height so images fit
+      sheet.setRowHeight(rowIndex + 1, 80);
+
+      // c) Embed images into their cells
       for (var imgCol = 0; imgCol < note.imagePaths.length; imgCol++) {
-        final dataCell = sheet.cell(
+        final cell = sheet.cell(
           CellIndex.indexByColumnRow(
             columnIndex: 4 + imgCol,
-            rowIndex: rowIndex + 1, // +1 because the header is row 0
+            rowIndex: rowIndex + 1, // +1 because header is row 0
           ),
         );
-        dataCell.value = await ImageCellValue.fromFile(
+        cell.value = await ImageCellValue.fromFile(
           note.imagePaths[imgCol],
           width: 100,
           height: 100,
@@ -101,14 +108,14 @@ class _ViewListScreenState extends State<ViewListScreen> {
       }
     }
 
-    // 6) Save to a temporary file
+    // 7) Save to a temporary file
     final bytes = excel.encode();
     final dir = await getTemporaryDirectory();
     final filePath = '${dir.path}/notes_export.xlsx';
     final file = File(filePath);
     await file.writeAsBytes(bytes!);
 
-    // 7) Share via system share sheet
+    // 8) Share via system share sheet
     try {
       await Share.shareXFiles(
         [XFile(filePath)],
