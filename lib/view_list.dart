@@ -1,3 +1,5 @@
+// lib/view_list.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,6 +10,7 @@ import 'db/db_helper.dart';
 
 class ViewListScreen extends StatefulWidget {
   const ViewListScreen({super.key});
+
   @override
   _ViewListScreenState createState() => _ViewListScreenState();
 }
@@ -46,32 +49,71 @@ class _ViewListScreenState extends State<ViewListScreen> {
       );
       return;
     }
-    // Create Excel
+
+    // 1) Filter selected notes
+    final selectedNotes = _notes.where((n) => n.id != null && _selectedIds.contains(n.id)).toList();
+
+    // 2) Create workbook & grab default Sheet1
     final excel = Excel.createExcel();
     final sheet = excel['Sheet1'];
-    sheet.appendRow([
-      'Text', 'DateTime', 'Latitude', 'Longitude'
+
+    // 3) Compute how many image‑columns we need
+    final maxImageCount = selectedNotes.fold<int>(
+      0,
+          (prev, note) => note.imagePaths.length > prev ? note.imagePaths.length : prev,
+    );
+
+    // 4) Header row (no ID)
+    sheet.appendRow(<CellValue?>[
+      TextCellValue('Text'),
+      TextCellValue('DateTime'),
+      TextCellValue('Latitude'),
+      TextCellValue('Longitude'),
+      ...List.generate(maxImageCount, (i) => TextCellValue('Image${i + 1}')),
     ]);
-    for (final note in _notes.where((n) => _selectedIds.contains(n.id))) {
-      sheet.appendRow([
-        note.text,
-        note.dateTime.toIso8601String(),
-        note.latitude,
-        note.longitude,
-        note.imagePaths.join(';')
+
+    // 5) Data rows
+    for (var rowIndex = 0; rowIndex < selectedNotes.length; rowIndex++) {
+      final note = selectedNotes[rowIndex];
+
+      // a) Insert text/date/coords + empty image‑cols
+      sheet.appendRow(<CellValue?>[
+        TextCellValue(note.text),
+        DateTimeCellValue.fromDateTime(note.dateTime),
+        note.latitude != null ? DoubleCellValue(note.latitude!) : null,
+        note.longitude != null ? DoubleCellValue(note.longitude!) : null,
+        ...List.filled(maxImageCount, null),
       ]);
+
+      // b) Embed each image in its cell
+      for (var imgCol = 0; imgCol < note.imagePaths.length; imgCol++) {
+        final dataCell = sheet.cell(
+          CellIndex.indexByColumnRow(
+            columnIndex: 4 + imgCol,
+            rowIndex: rowIndex + 1, // +1 because the header is row 0
+          ),
+        );
+        dataCell.value = await ImageCellValue.fromFile(
+          note.imagePaths[imgCol],
+          width: 100,
+          height: 100,
+        );
+      }
     }
+
+    // 6) Save to a temporary file
     final bytes = excel.encode();
     final dir = await getTemporaryDirectory();
     final filePath = '${dir.path}/notes_export.xlsx';
     final file = File(filePath);
     await file.writeAsBytes(bytes!);
 
-    // Share via system share sheet
+    // 7) Share via system share sheet
     try {
-      await Share.shareXFiles([
-        XFile(filePath)
-      ], text: 'Please find attached the exported notes.');
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        text: 'Please find attached the exported notes.',
+      );
       setState(() {
         _selectionMode = false;
         _selectedIds.clear();
@@ -108,7 +150,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
         itemCount: _notes.length,
         itemBuilder: (context, index) {
           final note = _notes[index];
-          final selected = _selectedIds.contains(note.id);
+          final selected = note.id != null && _selectedIds.contains(note.id);
           return _selectionMode
               ? CheckboxListTile(
             value: selected,
@@ -117,15 +159,14 @@ class _ViewListScreenState extends State<ViewListScreen> {
                   ? note.text.substring(0, 30) + '…'
                   : note.text,
             ),
-            subtitle: Text(
-              note.dateTime.toLocal().toString(),
-            ),
-            onChanged: (val) {
-              setState(() {
-                if (val == true) _selectedIds.add(note.id!);
-                else _selectedIds.remove(note.id);
-              });
-            },
+            subtitle: Text(note.dateTime.toLocal().toString()),
+            onChanged: (val) => setState(() {
+              if (val == true && note.id != null) {
+                _selectedIds.add(note.id!);
+              } else if (note.id != null) {
+                _selectedIds.remove(note.id);
+              }
+            }),
           )
               : ListTile(
             leading: note.imagePaths.isNotEmpty
