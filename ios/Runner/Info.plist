@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- ✅ Location Permissions for iOS -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to tag notes with GPS coordinates.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This allows notes to be saved with your current location.</string>
 </dict>
 </plist>
