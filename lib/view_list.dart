@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:excel/excel.dart';
 import 'package:share_plus/share_plus.dart';
@@ -113,6 +114,10 @@ class _ViewListScreenState extends State<ViewListScreen> {
     }
   }
 
+  String formatDateTime(DateTime dateTime) {
+    return DateFormat('yyyy-MM-dd hh:mm a').format(dateTime);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -144,7 +149,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
               ? CheckboxListTile(
             value: selected,
             title: Text(note.text.length > 30 ? '${note.text.substring(0, 30)}…' : note.text),
-            subtitle: Text(note.dateTime.toLocal().toString()),
+            subtitle: Text(formatDateTime(note.dateTime)),
             onChanged: (val) => setState(() {
               if (val == true && note.id != null) {
                 _selectedIds.add(note.id!);
@@ -180,8 +185,17 @@ class _ViewListScreenState extends State<ViewListScreen> {
               )
                   : const Icon(CupertinoIcons.doc_text),
               title: Text(note.text.length > 30 ? '${note.text.substring(0, 30)}…' : note.text),
-              subtitle: Text(
-                'Lat: ${note.latitude?.toStringAsFixed(4)}  Lng: ${note.longitude?.toStringAsFixed(4)}',
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    formatDateTime(note.dateTime),
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  Text(
+                    'Lat: ${note.latitude?.toStringAsFixed(4)}  Lng: ${note.longitude?.toStringAsFixed(4)}',
+                  ),
+                ],
               ),
             ),
           );
