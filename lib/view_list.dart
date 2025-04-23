@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'models/note_model.dart';
 import 'db/db_helper.dart';
 
+/// ViewListScreen is the screen that displays the list of notes.
 class ViewListScreen extends StatefulWidget {
   const ViewListScreen({super.key});
 
@@ -16,6 +17,7 @@ class ViewListScreen extends StatefulWidget {
   _ViewListScreenState createState() => _ViewListScreenState();
 }
 
+/// _ViewListScreenState is the state class for the ViewListScreen widget.
 class _ViewListScreenState extends State<ViewListScreen> {
   List<Note> _notes = [];
   bool _loading = true;
@@ -28,6 +30,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
     _loadNotes();
   }
 
+  /// Loads the notes from the database.
   Future<void> _loadNotes() async {
     final notes = await DBHelper().getNotes();
     setState(() {
@@ -36,6 +39,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
     });
   }
 
+  /// Toggles the selection mode.
   void _toggleSelectionMode() {
     setState(() {
       _selectionMode = !_selectionMode;
@@ -43,6 +47,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
     });
   }
 
+  /// Exports the selected notes to an Excel file.
   Future<void> _exportSelected() async {
     if (_selectedIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -51,6 +56,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
       return;
     }
 
+    /// Filters the notes based on the selected IDs.
     final selectedNotes = _notes.where((n) => n.id != null && _selectedIds.contains(n.id)).toList();
     final excel = Excel.createExcel();
     final sheet = excel['Sheet1'];
@@ -60,10 +66,12 @@ class _ViewListScreenState extends State<ViewListScreen> {
           (prev, note) => note.imagePaths.length > prev ? note.imagePaths.length : prev,
     );
 
+    /// Sets the column widths for the images.
     for (var imgCol = 0; imgCol < maxImageCount; imgCol++) {
       sheet.setColumnWidth(4 + imgCol, 20);
     }
 
+    /// Sets the header row.
     sheet.appendRow(<CellValue?>[
       TextCellValue('Text'),
       TextCellValue('DateTime'),
@@ -72,6 +80,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
       ...List.generate(maxImageCount, (i) => TextCellValue('Image${i + 1}')),
     ]);
 
+    /// Sets the data rows.
     for (var rowIndex = 0; rowIndex < selectedNotes.length; rowIndex++) {
       final note = selectedNotes[rowIndex];
       sheet.appendRow(<CellValue?>[
@@ -84,6 +93,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
 
       sheet.setRowHeight(rowIndex + 1, 80);
 
+      /// Sets the image cells.
       for (var imgCol = 0; imgCol < note.imagePaths.length; imgCol++) {
         final cell = sheet.cell(CellIndex.indexByColumnRow(
           columnIndex: 4 + imgCol,
@@ -97,6 +107,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
       }
     }
 
+    /// Exports the Excel file.
     final bytes = excel.encode();
     final dir = await getTemporaryDirectory();
     final filePath = '${dir.path}/notes_export.xlsx';
@@ -114,10 +125,12 @@ class _ViewListScreenState extends State<ViewListScreen> {
     }
   }
 
+  /// Formats the date and time.
   String formatDateTime(DateTime dateTime) {
     return DateFormat('yyyy-MM-dd hh:mm a').format(dateTime);
   }
 
+  /// Builds the ViewListScreen widget.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

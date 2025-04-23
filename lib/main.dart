@@ -10,6 +10,7 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -44,9 +45,11 @@ class MyApp extends StatelessWidget {
   }
 }
 
+/// HomeScreen is the main screen of the app.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
+  /// Builds the HomeScreen widget that displays the buttons to add a note and view the list of notes.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
