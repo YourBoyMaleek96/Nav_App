@@ -12,12 +12,14 @@ class NoteScreen extends StatefulWidget {
   _NoteScreenState createState() => _NoteScreenState();
 }
 
+/// _NoteScreenState is the state class for the NoteScreen widget.
 class _NoteScreenState extends State<NoteScreen> {
   final TextEditingController _controller = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final Location _location = Location();
   List<XFile> _images = [];
 
+  /// open image picker to select images.
   Future<void> _pickImages() async {
     try {
       final selectedImages = await _picker.pickMultiImage(imageQuality: 80);
@@ -29,18 +31,22 @@ class _NoteScreenState extends State<NoteScreen> {
     }
   }
 
+  /// Shows an error message in a snackbar.
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Saves the note to the database.
   Future<void> _saveNote() async {
     bool serviceEnabled = await _location.serviceEnabled();
     if (!serviceEnabled && !await _location.requestService()) return;
 
+    /// Checks if location permission is granted.
     PermissionStatus permissionGranted = await _location.hasPermission();
     if (permissionGranted == PermissionStatus.denied &&
         await _location.requestPermission() != PermissionStatus.granted) return;
 
+    /// Saves the note to the database.
     try {
       final locData = await _location.getLocation();
       final note = Note(
@@ -51,12 +57,13 @@ class _NoteScreenState extends State<NoteScreen> {
         longitude: locData.longitude,
       );
       await DBHelper().insertNote(note);
+      /// Goes back to the home screen.
       Navigator.pop(context);
     } catch (e) {
       _showError('Error saving note: $e');
     }
   }
-
+  /// Builds add note screen.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
