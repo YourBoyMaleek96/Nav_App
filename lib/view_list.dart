@@ -17,7 +17,6 @@ class ViewListScreen extends StatefulWidget {
   _ViewListScreenState createState() => _ViewListScreenState();
 }
 
-/// _ViewListScreenState is the state class for the ViewListScreen widget.
 class _ViewListScreenState extends State<ViewListScreen> {
   List<Note> _notes = [];
   bool _loading = true;
@@ -30,7 +29,6 @@ class _ViewListScreenState extends State<ViewListScreen> {
     _loadNotes();
   }
 
-  /// Loads the notes from the database.
   Future<void> _loadNotes() async {
     final notes = await DBHelper().getNotes();
     setState(() {
@@ -39,7 +37,12 @@ class _ViewListScreenState extends State<ViewListScreen> {
     });
   }
 
-  /// Toggles the selection mode.
+  Future<void> _deleteNote(int? id) async {
+    if (id == null) return;
+    await DBHelper().deleteNote(id);
+    _loadNotes();
+  }
+
   void _toggleSelectionMode() {
     setState(() {
       _selectionMode = !_selectionMode;
@@ -47,7 +50,6 @@ class _ViewListScreenState extends State<ViewListScreen> {
     });
   }
 
-  /// Exports the selected notes to an Excel file.
   Future<void> _exportSelected() async {
     if (_selectedIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -56,7 +58,6 @@ class _ViewListScreenState extends State<ViewListScreen> {
       return;
     }
 
-    /// Filters the notes based on the selected IDs.
     final selectedNotes = _notes.where((n) => n.id != null && _selectedIds.contains(n.id)).toList();
     final excel = Excel.createExcel();
     final sheet = excel['Sheet1'];
@@ -66,12 +67,10 @@ class _ViewListScreenState extends State<ViewListScreen> {
           (prev, note) => note.imagePaths.length > prev ? note.imagePaths.length : prev,
     );
 
-    /// Sets the column widths for the images.
     for (var imgCol = 0; imgCol < maxImageCount; imgCol++) {
       sheet.setColumnWidth(4 + imgCol, 20);
     }
 
-    /// Sets the header row.
     sheet.appendRow(<CellValue?>[
       TextCellValue('Text'),
       TextCellValue('DateTime'),
@@ -80,7 +79,6 @@ class _ViewListScreenState extends State<ViewListScreen> {
       ...List.generate(maxImageCount, (i) => TextCellValue('Image${i + 1}')),
     ]);
 
-    /// Sets the data rows.
     for (var rowIndex = 0; rowIndex < selectedNotes.length; rowIndex++) {
       final note = selectedNotes[rowIndex];
       sheet.appendRow(<CellValue?>[
@@ -93,7 +91,6 @@ class _ViewListScreenState extends State<ViewListScreen> {
 
       sheet.setRowHeight(rowIndex + 1, 80);
 
-      /// Sets the image cells.
       for (var imgCol = 0; imgCol < note.imagePaths.length; imgCol++) {
         final cell = sheet.cell(CellIndex.indexByColumnRow(
           columnIndex: 4 + imgCol,
@@ -107,7 +104,6 @@ class _ViewListScreenState extends State<ViewListScreen> {
       }
     }
 
-    /// Exports the Excel file.
     final bytes = excel.encode();
     final dir = await getTemporaryDirectory();
     final filePath = '${dir.path}/notes_export.xlsx';
@@ -125,12 +121,10 @@ class _ViewListScreenState extends State<ViewListScreen> {
     }
   }
 
-  /// Formats the date and time.
   String formatDateTime(DateTime dateTime) {
     return DateFormat('yyyy-MM-dd hh:mm a').format(dateTime);
   }
 
-  /// Builds the ViewListScreen widget.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -152,67 +146,75 @@ class _ViewListScreenState extends State<ViewListScreen> {
           ? const Center(child: CupertinoActivityIndicator())
           : _notes.isEmpty
           ? const Center(child: Text('No notes yet'))
-          : ListView.separated(
-        itemCount: _notes.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final note = _notes[index];
-          final selected = note.id != null && _selectedIds.contains(note.id);
-          return _selectionMode
-              ? CheckboxListTile(
-            value: selected,
-            title: Text(note.text.length > 30 ? '${note.text.substring(0, 30)}…' : note.text),
-            subtitle: Text(formatDateTime(note.dateTime)),
-            onChanged: (val) => setState(() {
-              if (val == true && note.id != null) {
-                _selectedIds.add(note.id!);
-              } else if (note.id != null) {
-                _selectedIds.remove(note.id);
-              }
-            }),
-          )
-              : Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ListTile(
-              leading: note.imagePaths.isNotEmpty
-                  ? ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.file(
-                  File(note.imagePaths.first),
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                ),
-              )
-                  : const Icon(CupertinoIcons.doc_text),
+          : SingleChildScrollView(
+        child: ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _notes.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final note = _notes[index];
+            final selected = note.id != null && _selectedIds.contains(note.id);
+            return _selectionMode
+                ? CheckboxListTile(
+              value: selected,
               title: Text(note.text.length > 30 ? '${note.text.substring(0, 30)}…' : note.text),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    formatDateTime(note.dateTime),
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  Text(
-                    'Lat: ${note.latitude?.toStringAsFixed(4)}  Lng: ${note.longitude?.toStringAsFixed(4)}',
+              subtitle: Text(formatDateTime(note.dateTime)),
+              onChanged: (val) => setState(() {
+                if (val == true && note.id != null) {
+                  _selectedIds.add(note.id!);
+                } else if (note.id != null) {
+                  _selectedIds.remove(note.id);
+                }
+              }),
+            )
+                : Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-            ),
-          );
-        },
+              child: ListTile(
+                leading: note.imagePaths.isNotEmpty
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.file(
+                    File(note.imagePaths.first),
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                  ),
+                )
+                    : const Icon(CupertinoIcons.doc_text),
+                title: Text(note.text.length > 30 ? '${note.text.substring(0, 30)}…' : note.text),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      formatDateTime(note.dateTime),
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    Text(
+                      'Lat: ${note.latitude?.toStringAsFixed(4)}  Lng: ${note.longitude?.toStringAsFixed(4)}',
+                    ),
+                  ],
+                ),
+                trailing: IconButton(
+                  icon: const Icon(CupertinoIcons.delete, color: Colors.redAccent),
+                  onPressed: () => _deleteNote(note.id),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
