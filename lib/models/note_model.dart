@@ -1,18 +1,26 @@
+import 'dart:convert';
+
 class Note {
   final int? id;
   final String text;
-  final List<String> imagePaths;
+  final List<String> imageBase64List;
   final DateTime dateTime;
   final double? latitude;
   final double? longitude;
 
-  Note({this.id, required this.text, required this.imagePaths, required this.dateTime, this.latitude, this.longitude});
+  Note({
+    this.id,
+    required this.text,
+    required this.imageBase64List,
+    required this.dateTime,
+    this.latitude,
+    this.longitude,
+  });
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'text': text,
-      'imagePaths': imagePaths.join(','),
+      'imageBase64List': jsonEncode(imageBase64List),
       'dateTime': dateTime.toIso8601String(),
       'latitude': latitude,
       'longitude': longitude,
@@ -20,17 +28,31 @@ class Note {
   }
 
   factory Note.fromMap(Map<String, dynamic> map) {
-    final pathsString = map['imagePaths'] as String;
-    final List<String> paths =
-    pathsString.isNotEmpty ? pathsString.split(',') : <String>[];
+    List<String> images = [];
+    if (map['imageBase64List'] != null) {
+      final decoded = jsonDecode(map['imageBase64List']);
+      images = List<String>.from(decoded);
+    }
 
     return Note(
-      id: map['id'] as int?,
-      text: map['text'] as String,
-      imagePaths: paths,
-      dateTime: DateTime.parse(map['dateTime'] as String),
+      id: map['id'] as int?, // Will be overridden by DBHelper
+      text: map['text'] ?? '',
+      imageBase64List: images,
+      dateTime: DateTime.parse(map['dateTime']),
       latitude: map['latitude'] as double?,
       longitude: map['longitude'] as double?,
+    );
+  }
+
+  /// Returns a copy of the note with updated fields (used for setting ID after fetch)
+  Note copyWith({int? id}) {
+    return Note(
+      id: id ?? this.id,
+      text: text,
+      imageBase64List: imageBase64List,
+      dateTime: dateTime,
+      latitude: latitude,
+      longitude: longitude,
     );
   }
 }

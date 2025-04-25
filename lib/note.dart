@@ -1,30 +1,40 @@
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:location/location.dart';
+
 import 'models/note_model.dart';
 import 'db/db_helper.dart';
 
 class NoteScreen extends StatefulWidget {
   const NoteScreen({super.key});
+
   @override
   _NoteScreenState createState() => _NoteScreenState();
 }
 
-/// _NoteScreenState is the state class for the NoteScreen widget.
 class _NoteScreenState extends State<NoteScreen> {
   final TextEditingController _controller = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final Location _location = Location();
-  List<XFile> _images = [];
 
-  /// open image picker to select images.
+  List<String> _imageBase64List = [];
+
+  /// Opens image picker and converts images to base64.
   Future<void> _pickImages() async {
     try {
       final selectedImages = await _picker.pickMultiImage(imageQuality: 80);
       if (selectedImages != null && selectedImages.isNotEmpty) {
-        setState(() => _images.addAll(selectedImages));
+        for (final image in selectedImages) {
+          final bytes = await image.readAsBytes();
+          final base64Image = base64Encode(bytes);
+          _imageBase64List.add(base64Image);
+        }
+        setState(() {});
       }
     } catch (e) {
       _showError('Error picking images: $e');
@@ -41,29 +51,44 @@ class _NoteScreenState extends State<NoteScreen> {
     bool serviceEnabled = await _location.serviceEnabled();
     if (!serviceEnabled && !await _location.requestService()) return;
 
-    /// Checks if location permission is granted.
     PermissionStatus permissionGranted = await _location.hasPermission();
     if (permissionGranted == PermissionStatus.denied &&
         await _location.requestPermission() != PermissionStatus.granted) return;
 
-    /// Saves the note to the database.
     try {
       final locData = await _location.getLocation();
       final note = Note(
         text: _controller.text,
-        imagePaths: _images.map((x) => x.path).toList(),
+        imageBase64List: _imageBase64List,
         dateTime: DateTime.now(),
         latitude: locData.latitude,
         longitude: locData.longitude,
       );
       await DBHelper().insertNote(note);
-      /// Goes back to the home screen.
       Navigator.pop(context);
     } catch (e) {
       _showError('Error saving note: $e');
     }
   }
-  /// Builds add note screen.
+
+  /// Decodes a base64 image string into a widget.
+  Widget _buildImage(String base64String) {
+    try {
+      final Uint8List bytes = base64Decode(base64String);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.memory(
+          bytes,
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+        ),
+      );
+    } catch (_) {
+      return const Icon(Icons.broken_image);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,22 +133,15 @@ class _NoteScreenState extends State<NoteScreen> {
                         ),
                       ),
                     ),
-                    if (_images.isNotEmpty)
+                    if (_imageBase64List.isNotEmpty)
                       SizedBox(
                         height: 100,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          itemCount: _images.length,
+                          itemCount: _imageBase64List.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
                           itemBuilder: (context, index) {
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(
-                                File(_images[index].path),
-                                width: 100,
-                                fit: BoxFit.cover,
-                              ),
-                            );
+                            return _buildImage(_imageBase64List[index]);
                           },
                         ),
                       ),

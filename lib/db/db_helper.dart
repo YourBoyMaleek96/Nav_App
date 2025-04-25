@@ -1,61 +1,51 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import 'dart:convert';
+import 'package:sembast/sembast.dart';
+import 'package:sembast_web/sembast_web.dart';
 import '../models/note_model.dart';
 
-/// DBHelper class that handles database operations using SQLite.
+/// DBHelper class that handles database operations using sembast for web/mobile.
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
   factory DBHelper() => _instance;
   DBHelper._internal();
 
+  static final _store = intMapStoreFactory.store('notes');
   static Database? _db;
 
   /// Returns the database instance.
   Future<Database> get database async {
     if (_db != null) return _db!;
-    String path = join(await getDatabasesPath(), 'notes.db');
-    _db = await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE notes(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            text TEXT,
-            imagePaths TEXT,
-            dateTime TEXT,
-            latitude REAL,
-            longitude REAL
-          )
-        ''');
-      },
-    );
+    final factory = DatabaseFactoryWeb(); // works on web
+    _db = await factory.openDatabase('notes.db');
     return _db!;
   }
 
   /// Inserts a note into the database.
   Future<int> insertNote(Note note) async {
     final dbClient = await database;
-    return await dbClient.insert('notes', note.toMap());
+    final key = await _store.add(dbClient, note.toMap());
+    return key;
   }
 
   /// Retrieves all notes from the database.
   Future<List<Note>> getNotes() async {
     final dbClient = await database;
-    final List<Map<String, dynamic>> maps = await dbClient.query(
-      'notes',
-      orderBy: 'dateTime DESC',
+    final records = await _store.find(
+      dbClient,
+      finder: Finder(sortOrders: [SortOrder('dateTime', false)]),
     );
-    return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+    return records.map((snapshot) {
+      final note = Note.fromMap(snapshot.value);
+      return note.copyWith(id: snapshot.key);
+    }).toList();
   }
 
-  /// Updates a note in the database.
+  /// Deletes a note by ID.
   Future<int> deleteNote(int id) async {
     final dbClient = await database;
-    return await dbClient.delete(
-      'notes',
-      where: 'id = ?',
-      whereArgs: [id],
+    return await _store.delete(
+      dbClient,
+      finder: Finder(filter: Filter.byKey(id)),
     );
   }
 }

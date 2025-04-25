@@ -1,15 +1,16 @@
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:excel/excel.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:excel/excel.dart';
+import 'package:path_provider/path_provider.dart'; // For mobile
+import 'dart:io' show File; // For Excel export only
 
 import 'models/note_model.dart';
 import 'db/db_helper.dart';
 
-/// ViewListScreen is the screen that displays the list of notes.
 class ViewListScreen extends StatefulWidget {
   const ViewListScreen({super.key});
 
@@ -50,6 +51,24 @@ class _ViewListScreenState extends State<ViewListScreen> {
     });
   }
 
+  /// Converts a base64 image to a widget.
+  Widget _buildImageFromBase64(String base64Str) {
+    try {
+      final Uint8List bytes = base64Decode(base64Str);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.memory(
+          bytes,
+          width: 50,
+          height: 50,
+          fit: BoxFit.cover,
+        ),
+      );
+    } catch (_) {
+      return const Icon(CupertinoIcons.photo);
+    }
+  }
+
   Future<void> _exportSelected() async {
     if (_selectedIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,7 +83,7 @@ class _ViewListScreenState extends State<ViewListScreen> {
 
     final maxImageCount = selectedNotes.fold<int>(
       0,
-          (prev, note) => note.imagePaths.length > prev ? note.imagePaths.length : prev,
+          (prev, note) => note.imageBase64List.length > prev ? note.imageBase64List.length : prev,
     );
 
     for (var imgCol = 0; imgCol < maxImageCount; imgCol++) {
@@ -86,22 +105,13 @@ class _ViewListScreenState extends State<ViewListScreen> {
         DateTimeCellValue.fromDateTime(note.dateTime),
         note.latitude != null ? DoubleCellValue(note.latitude!) : null,
         note.longitude != null ? DoubleCellValue(note.longitude!) : null,
-        ...List.filled(maxImageCount, null),
+        ...List.generate(maxImageCount, (i) {
+          if (i < note.imageBase64List.length) {
+            return TextCellValue('[Image]');
+          }
+          return null;
+        }),
       ]);
-
-      sheet.setRowHeight(rowIndex + 1, 80);
-
-      for (var imgCol = 0; imgCol < note.imagePaths.length; imgCol++) {
-        final cell = sheet.cell(CellIndex.indexByColumnRow(
-          columnIndex: 4 + imgCol,
-          rowIndex: rowIndex + 1,
-        ));
-        cell.value = await ImageCellValue.fromFile(
-          note.imagePaths[imgCol],
-          width: 100,
-          height: 100,
-        );
-      }
     }
 
     final bytes = excel.encode();
@@ -183,16 +193,8 @@ class _ViewListScreenState extends State<ViewListScreen> {
                 ],
               ),
               child: ListTile(
-                leading: note.imagePaths.isNotEmpty
-                    ? ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.file(
-                    File(note.imagePaths.first),
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                  ),
-                )
+                leading: note.imageBase64List.isNotEmpty
+                    ? _buildImageFromBase64(note.imageBase64List.first)
                     : const Icon(CupertinoIcons.doc_text),
                 title: Text(note.text.length > 30 ? '${note.text.substring(0, 30)}…' : note.text),
                 subtitle: Column(
